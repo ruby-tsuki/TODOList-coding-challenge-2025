@@ -29,6 +29,8 @@ func main() {
 	todoService := service.NewTodoService(taskDAO)
 	defer todoService.Close()
 
+	go DDLCheck(todoService)
+
 	//整活
 	fmt.Printf(`⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢰⣦⡀⠀⠀⣠⣿⣿⠀⠀⠀⠀⠀⠀
@@ -94,6 +96,17 @@ func runCLI(service *service.TodoService) {
 			displayHelp()
 		default:
 			fmt.Println("未知命令，输入 'help' 查看可用命令")
+		}
+	}
+}
+
+func DDLCheck(service *service.TodoService) {
+	ticker := time.NewTicker(10 * time.Minute)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			checkOneHourUrgentTasks(service)
 		}
 	}
 }
@@ -167,6 +180,35 @@ func handleUrgentCommand(service *service.TodoService, parts []string) {
 	} else {
 		fmt.Printf("\n🚨 最紧迫的 %d 个DDL任务:\n", limit)
 		displayTasksWithDeadline(tasks)
+	}
+}
+
+func checkOneHourUrgentTasks(service *service.TodoService) {
+	tasks, err := service.GetUrgentTasks(5)
+	if err != nil {
+		fmt.Printf("检查DDL时获取任务列表失败:%v\n", err)
+		return
+	}
+	now := time.Now()
+	warningTime := time.Hour
+
+	expiringTasks := make([]*model.Task, 0)
+	for _, task := range tasks {
+		timeUntilDeadline := task.DeadLine.Sub(now)
+		if timeUntilDeadline > 0 && timeUntilDeadline <= warningTime {
+			expiringTasks = append(expiringTasks, task)
+		}
+	}
+	if len(expiringTasks) > 0 {
+		fmt.Println("\n🚨🚨🚨 DDL 警报！以下任务将在1小时内到期：")
+		fmt.Println("=========================================")
+		for i, task := range expiringTasks {
+			minutesLeft := int(task.DeadLine.Sub(now).Minutes())
+			fmt.Printf("%d. [ID:%d] %s\n", i+1, task.ID, task.Title)
+			fmt.Printf("   剩余时间: %d分钟 | 到期时间: %s\n", minutesLeft, task.DeadLine.Format("15:04:05"))
+			fmt.Println()
+		}
+		fmt.Println("=========================================")
 	}
 }
 
@@ -389,17 +431,17 @@ func formatDuration(d time.Duration) string {
 func displayHelp() {
 	fmt.Println(`
 可用命令:
-  add <任务内容>        - 添加新任务
-  undo [数量]          - 显示最近未完成任务（按创建时间）
-  urgent [数量]        - 显示最紧迫的DDL任务
-  done                 - 显示已完成任务
-  update <ID> <标题> <状态> - 更新任务(标题和状态)
-  delete <ID>          - 删除指定任务
-  finish <ID>          - 标记任务为已完成
-  deleteAll            - 删除所有任务
-  clear                - 清空终端屏幕
-  exit                 - 退出程序
-  help                 - 显示此帮助信息
+  add <任务内容> <ddl(可选)>       - 添加新任务
+  undo [数量]          			 - 显示最近未完成任务（按创建时间）
+  urgent [数量]        			 - 显示最紧迫的DDL任务
+  done                 			 - 显示已完成任务
+  update <ID> <标题> <状态> <ddl>  - 更新任务(标题和状态)
+  delete <ID>         			 - 删除指定任务
+  finish <ID>         			 - 标记任务为已完成
+  deleteAll          			 - 删除所有任务
+  clear               			 - 清空终端屏幕
+  exit                			 - 退出程序
+  help                			 - 显示此帮助信息
 
 示例:
   add 学习Go语言        # 添加任务
