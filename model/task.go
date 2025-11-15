@@ -8,9 +8,11 @@ type Task struct {
 	Done     bool      `json:"done"`
 	CreateAt time.Time `json:"create_at"`
 	UpdateAt time.Time `json:"update_at"`
+	DeadLine time.Time `json:"dead_line"`
 }
 
 type TaskFilter struct {
-	Done  bool
-	Limit int
+	Done            bool
+	Limit           int
+	OrderByDeadline bool
 }

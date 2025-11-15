@@ -29,18 +29,15 @@
 - DAO层-数据访问层：task_dao_interface.go定义接口，方法标签Create、GetList、Update、Delete、Count、Close。task_dao_mysql.go是基于mysql数据库的接口实现。
 - service层-业务逻辑层：任务管理：AddTask、ShowUndoTasks、ShowDoneTasks。任务更新和删除：UpdateTask、DeleteTask、FinishedTask。批量操作：ClearAllTask、GetRecentUndoTasks。连接释放：Close
 - main-主程序：命令行界面(CLI)的实现、用户交互和输入处理
-## 3. 需求细节与决策
-- 任务的添加、删除、标记完成、查询未完成/已完成任务。
-- 实现全部删除、行数显示限制
-- 使用mysql，可实现持久化
+## 3. ===更新功能===
+- 修改底层数据结构，添加ddl，实现两种排序（基于添加时间-undo，基于ddl-urgent）
+- 原有的clear变更为deleteAll，现clear为清空终端
+- 添加可爱猫猫头初始界面
 
 ## 4. AI 使用说明
 - 使用到chatGPT、Deepseek 
 - 使用 AI 的环节：  
-  - main函数中终端显示以及输入处理
-  - 文档初稿编写
-  - 代码检查及优化建议
-- AI 输出如何修改：AI设计的GetList是整体显示，按照大多数人使用习惯我将其查分成查询undo和done。
+  - 自行修改model、DAO、service层后让AI修改main函数，修改handlefun。
 
 ## 5. 运行与测试方式
 - 本地终端运行
@@ -48,13 +45,11 @@
   - 输入help查询使用说明以及示例
 - 已测试过的环境（windows）。  
 - 已知问题与不足
-  - getlist时id倒叙
-  - 没有设计ddl，应该添加ddl字段，配合watchdog实现自动提醒
-  - 应该设计一个终端显示清除功能
+  - 缺少watchdog，需要添加一个watchdog（可以用goroutine），将ddl小于1h的报警（每10分钟）
 
 ## 6. 总结与反思
 - 如果有更多时间，你会如何改进？ 
-  - 根据上面的问题和不足进行版本优化
+  - 再写个watchdog
 - 你觉得这个实现的最大亮点是什么？
-  - 基于DAO模式设计，项目结构清晰，后期维护以及拓展方便
+  - 这次修改从底层数据结构（task、taskfilter）入手，task负责底层数据、filter负责设定查询功能，保证了代码的规范性和整洁性
 

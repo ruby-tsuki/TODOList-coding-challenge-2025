@@ -4,6 +4,7 @@ import (
 	"J/DAO"
 	"J/model"
 	"fmt"
+	"time"
 )
 
 type TodoService struct {
@@ -15,13 +16,14 @@ func NewTodoService(taskDAO DAO.TaskDAO) *TodoService {
 		taskDAO: taskDAO,
 	}
 }
-func (service *TodoService) AddTask(title string) (*model.Task, error) {
+func (service *TodoService) AddTask(title string, ddl int) (*model.Task, error) {
 	if title == "" {
 		return nil, fmt.Errorf("task title can not be empty")
 	}
 	task := &model.Task{
-		Title: title,
-		Done:  false,
+		Title:    title,
+		Done:     false,
+		DeadLine: time.Now().Add(time.Duration(time.Minute * time.Duration(ddl))),
 	}
 	err := service.taskDAO.Create(task)
 	if err != nil {
@@ -48,8 +50,8 @@ func (service *TodoService) ShowDoneTasks() ([]*model.Task, error) {
 	return doneTasks, nil
 }
 
-func (service *TodoService) UpdateTask(ID int, title string, done bool) error {
-	err := service.taskDAO.Update(ID, title, done)
+func (service *TodoService) UpdateTask(ID int, title string, done bool, ddl time.Time) error {
+	err := service.taskDAO.Update(ID, title, done, ddl)
 	if err != nil {
 		return fmt.Errorf("failed to update task: %v", err)
 	}
@@ -64,9 +66,23 @@ func (service *TodoService) DeleteTask(ID int) error {
 	return nil
 }
 
+// new
+func (service *TodoService) GetUrgentTasks(limit int) ([]*model.Task, error) {
+	filter := model.TaskFilter{
+		Done:            false,
+		Limit:           limit,
+		OrderByDeadline: true,
+	}
+	tasks, err := service.taskDAO.GetList(filter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get urgent tasks:%v", err)
+	}
+	return tasks, nil
+}
+
 func (service *TodoService) FinishedTask(ID int) error {
 	done := true
-	return service.UpdateTask(ID, "", done)
+	return service.UpdateTask(ID, "", done, time.Time{})
 }
 
 func (service *TodoService) ClearAllTasks() error {
